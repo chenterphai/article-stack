@@ -43,8 +43,8 @@ export class Token extends BaseEntity {
   user!: User;
 
   @Field(() => String)
-  @Column({ type: 'timestamp', nullable: true })
-  expiresAt!: Date | null;
+  @Column({ type: 'timestamp' })
+  expiresAt!: Date;
 
   @Field(() => Boolean)
   @Column({ default: false })
