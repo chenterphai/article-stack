@@ -16,7 +16,15 @@ import { Article } from '@/entities/article.entities';
 import { Comment } from '@/entities/comment.entities';
 import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
-import { Arg, Ctx, Int, Mutation, Query, Resolver } from 'type-graphql';
+import {
+  Arg,
+  Ctx,
+  Int,
+  Mutation,
+  Query,
+  Resolver,
+  UseMiddleware,
+} from 'type-graphql';
 import { Repository } from 'typeorm';
 import {
   ArticlesResponse,
@@ -25,6 +33,8 @@ import {
 import { CreateArticleInput } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
+import { authenticate } from '@/middleware/authenticate';
+import { authorize } from '@/middleware/authorize';
 
 @Resolver(() => Article) // Main Resolver for Artile entity
 export class ArticleResolver {
@@ -72,6 +82,8 @@ export class ArticleResolver {
 
   /**---- Article Mutation ---- */
   @Mutation(() => CreateArticleResponse)
+  @UseMiddleware(authenticate)
+  @UseMiddleware(authorize(['admin']))
   async createArticle(
     @Arg('input') input: CreateArticleInput,
     @Ctx() context: GraphQLContext,
