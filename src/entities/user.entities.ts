@@ -84,12 +84,12 @@ export class User extends BaseEntity {
   @Column({ type: 'text', default: Role.USER, nullable: false }) // Store enum as text for flexibility
   role!: Role;
 
-  @Field(() => Token, { nullable: true })
-  @OneToOne(() => Token, (token) => token.user, {
+  @Field(() => [Token], { nullable: true })
+  @OneToMany(() => Token, (token) => token.user, {
     cascade: ['insert', 'update', 'remove'], // Cascade operations
     nullable: true, // A user might not always have an active token initially
   })
-  token!: Token; // Assuming a OneToOne relation with Token
+  token!: Token[]; // Assuming a OneToOne relation with Token
 
   @Field(() => [Article])
   @OneToMany(() => Article, (article) => article.author)

@@ -18,12 +18,13 @@ import { AppDataSource } from '@/libs/postgresql';
 import { Arg, Ctx, Mutation, Resolver } from 'type-graphql';
 import { Repository } from 'typeorm';
 import { AuthResponse } from '../types/response.type';
-import { RegisterInput } from '../types/input.type';
+import { LoginInput, RegisterInput } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
 import bcrypt from 'bcrypt';
 import { generateAccessToken, generateRefreshToken } from '@/libs/jwt';
 import { cambodidaTimeFormater, futureDateTimeFormater } from '@/libs/dtf';
 import config from '@/config';
+import { logger } from '@/libs/winston';
 
 @Resolver(() => User)
 export class AuthResolver {
@@ -95,6 +96,87 @@ export class AuthResolver {
     } catch (error) {
       return {
         status: { code: 0, status: 'ERROR', msg: 'Internal Server Error.' },
+        content: null,
+      };
+    }
+  }
+
+  @Mutation(() => AuthResponse)
+  async login(
+    @Arg('input') input: LoginInput,
+    @Ctx() context: GraphQLContext,
+  ): Promise<AuthResponse> {
+    try {
+      const { password, usernameOrEmail } = input;
+
+      const user = await this.userRepository.findOne({
+        where: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
+      });
+
+      if (!user) {
+        return {
+          status: {
+            code: 1,
+            status: 'NOT_FOUND',
+            msg: `User with username/email ${usernameOrEmail} not found!`,
+          },
+          content: null,
+        };
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return {
+          status: {
+            code: 1,
+            status: 'BAD_REQUEST',
+            msg: `Invalid credentials`,
+          },
+          content: null,
+        };
+      }
+      const activeToken = await this.tokenRepository.findOne({
+        where: { user: { id: user.id }, isRevoked: false },
+      });
+
+      if (activeToken) {
+        activeToken.isRevoked = true;
+        await this.tokenRepository.save(activeToken);
+      }
+
+      const accessToken = generateAccessToken(String(user.id), user.username);
+      const refrshToken = generateRefreshToken(String(user.id), user.username);
+
+      const newToken = this.tokenRepository.create({
+        token: refrshToken,
+        user: user,
+        creationtime: cambodidaTimeFormater(),
+        updatetime: cambodidaTimeFormater(),
+        expiresAt: futureDateTimeFormater(config.REFRESH_TOKEN_EXPIRY),
+        isRevoked: false,
+      });
+      await this.tokenRepository.save(newToken);
+
+      logger.info(`User logged in succcessfully.`);
+
+      return {
+        status: {
+          code: 0,
+          status: 'OK',
+          msg: 'User logged in successfully.',
+        },
+        content: {
+          accessToken,
+          data: user,
+        },
+      };
+    } catch (error) {
+      logger.error(`Error while user logging in.`, error);
+      return {
+        status: {
+          code: 1,
+          status: 'INTERNAL_SERVER_ERROR',
+          msg: 'Error while user logging in.',
+        },
         content: null,
       };
     }

@@ -24,6 +24,7 @@ import {
 } from '../types/response.type';
 import { CreateArticleInput } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
+import { logger } from '@/libs/winston';
 
 @Resolver(() => Article) // Main Resolver for Artile entity
 export class ArticleResolver {
@@ -112,6 +113,7 @@ export class ArticleResolver {
       });
 
       await this.articleRepository.save(newArticle);
+      logger.info(`Article created successfully.`, newArticle.id);
       return {
         status: {
           code: 0,

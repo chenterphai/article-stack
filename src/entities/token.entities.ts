@@ -17,7 +17,7 @@ import {
   Column,
   Entity,
   JoinColumn,
-  OneToOne,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from './user.entities';
@@ -35,7 +35,10 @@ export class Token extends BaseEntity {
   token!: string;
 
   @Field(() => User)
-  @OneToOne(() => User, (user) => user.token, { nullable: false })
+  @ManyToOne(() => User, (user) => user.token, {
+    nullable: false,
+    onDelete: 'CASCADE', // If user is deleted, token are deleted
+  })
   @JoinColumn()
   user!: User;
 

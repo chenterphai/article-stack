@@ -15,6 +15,7 @@
 import { ArticleStatus } from '@/entities/article.entities';
 import { Gender, Role } from '@/entities/user.entities';
 import { Field, InputType, Int } from 'type-graphql';
+import { MaxLength, IsEmail, Length, IsIn } from 'class-validator';
 
 // ARTICLES
 
@@ -44,9 +45,11 @@ export class RegisterInput {
   username!: string;
 
   @Field(() => String)
+  @IsEmail()
   email!: string;
 
   @Field()
+  @Length(4)
   password!: string;
 
   @Field({ nullable: true })
@@ -56,9 +59,11 @@ export class RegisterInput {
   avatar?: string;
 
   @Field(() => Gender, { defaultValue: Gender.OTHER })
+  @IsIn(Object.values(Gender))
   gender!: Gender;
 
   @Field(() => Role, { defaultValue: Role.USER })
+  @IsIn(Object.values(Role))
   role!: Role;
 }
 
