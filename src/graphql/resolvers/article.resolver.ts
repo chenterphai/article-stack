@@ -31,7 +31,7 @@ import {
   Resolver,
   UseMiddleware,
 } from 'type-graphql';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import {
   ArticleResponse,
   ArticlesResponse,
@@ -74,6 +74,8 @@ export class ArticleResolver {
       },
     })
     sort: ArticleSortInput,
+    @Arg('searchKeyword', () => String, { nullable: true })
+    searchKeyword: string,
   ): Promise<ArticlesResponse> {
     try {
       // Build the order object dynamically
@@ -81,13 +83,41 @@ export class ArticleResolver {
 
       order[sort.field] = sort.direction;
 
-      const articles = await this.articleRepository.find({
-        where: { status: ArticleStatus.PUBLISHED },
-        relations: ['author'],
-        take: limit,
-        skip: offset,
-        order: order,
+      // Query Builder
+      const queryBuilder =
+        this.articleRepository.createQueryBuilder('fa_articles');
+
+      queryBuilder.where('fa_articles.status = :status', {
+        status: ArticleStatus.PUBLISHED,
       });
+
+      if (searchKeyword) {
+        const keyword = `%${searchKeyword}%`;
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where('fa_articles.title ILIKE :keyword', { keyword }).orWhere(
+              'fa_articles.content ILIKE :keyword',
+              { keyword },
+            );
+          }),
+        );
+      }
+
+      queryBuilder
+        .leftJoinAndSelect('fa_articles.author', 'fa_users')
+        .orderBy(`fa_articles.${sort.field}`, sort.direction)
+        .take(limit)
+        .skip(offset);
+
+      const articles = await queryBuilder.getMany();
+
+      // const articles = await this.articleRepository.find({
+      //   where: { status: ArticleStatus.PUBLISHED },
+      //   relations: ['author'],
+      //   take: limit,
+      //   skip: offset,
+      //   order: order,
+      // });
       return {
         status: {
           code: 0,
