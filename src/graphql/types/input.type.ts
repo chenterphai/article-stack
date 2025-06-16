@@ -40,9 +40,6 @@ export class CreateArticleInput {
   @Field(() => String)
   slug!: string;
 
-  @Field(() => Int) // Author ID
-  authorId!: number;
-
   @Field(() => ArticleStatus, { defaultValue: ArticleStatus.DRAFT })
   status!: ArticleStatus;
 }
@@ -139,9 +136,6 @@ export class LoginInput {
 export class CreateCommentInput {
   @Field(() => String)
   content!: string;
-
-  @Field(() => Int) // Author ID of the comment
-  authorId!: number;
 
   @Field(() => Int) // Article ID the comment belongs to
   articleId!: number;

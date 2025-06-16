@@ -24,17 +24,20 @@ import { AppDataSource } from '@/libs/postgresql';
 import {
   Arg,
   Ctx,
+  FieldResolver,
   ID,
   Int,
   Mutation,
   Query,
   Resolver,
+  Root,
   UseMiddleware,
 } from 'type-graphql';
 import { Brackets, Repository } from 'typeorm';
 import {
   ArticleResponse,
   ArticlesResponse,
+  CommentsResponse,
   CreateArticleResponse,
   DeleteArticleResponse,
   UpdateArticleResponse,
@@ -48,6 +51,7 @@ import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
 import { authenticate } from '@/middleware/authenticate';
 import { authorize } from '@/middleware/authorize';
+import { GraphQLError } from 'graphql';
 
 @Resolver(() => Article) // Main Resolver for Artile entity
 export class ArticleResolver {
@@ -105,6 +109,7 @@ export class ArticleResolver {
 
       queryBuilder
         .leftJoinAndSelect('fa_articles.author', 'fa_users')
+        .leftJoinAndSelect('fa_articles.comments', 'fa_comments')
         .orderBy(`fa_articles.${sort.field}`, sort.direction)
         .take(limit)
         .skip(offset);
@@ -185,15 +190,17 @@ export class ArticleResolver {
     @Ctx() context: GraphQLContext,
   ): Promise<CreateArticleResponse> {
     try {
+      const authorId = context.req.userId;
+
       const author = await this.userRepository.findOne({
-        where: { id: input.authorId },
+        where: { id: authorId },
       });
       if (!author) {
         return {
           status: {
             code: 1,
             status: 'NOT_FOUND',
-            msg: `Author with ID ${input.authorId} not found!`,
+            msg: `Author with ID ${authorId} not found!`,
           },
           content: null,
         };
@@ -329,6 +336,7 @@ export class ArticleResolver {
   }
 
   @Mutation(() => DeleteArticleResponse)
+  @UseMiddleware(authenticate)
   async deleteArticle(
     @Arg('id') id: string,
     @Ctx() context: GraphQLContext,
@@ -368,5 +376,63 @@ export class ArticleResolver {
         content: { message: error.message || 'Failed to delete article.' },
       };
     }
+  }
+
+  /**-- Field Resolvers for Article Type */
+
+  /** --- Handle author field */
+  @FieldResolver(() => User)
+  async author(
+    @Root() article: Article,
+    @Ctx() context: GraphQLContext,
+  ): Promise<User> {
+    if (article.author) {
+      return article.author;
+    }
+
+    const userRepository: Repository<User> =
+      context.AppDataSource.getRepository(User);
+    const fetchedAuthor = await userRepository.findOne({
+      where: { id: (article.author as User).id },
+    });
+    if (!fetchedAuthor) {
+      throw new GraphQLError('Author not found for article.');
+    }
+
+    return fetchedAuthor;
+  }
+
+  /** --- Comments Resolver --- */
+  @FieldResolver(() => Comment) // Return custom response for nested list
+  async comments(
+    @Root() article: Article,
+    @Arg('limit', () => Int, { nullable: true }) limit: number,
+    @Arg('offset', () => Int, { nullable: true }) offset: number,
+    @Ctx() context: GraphQLContext,
+  ): Promise<Comment[] | null> {
+    try {
+      const commentRepository: Repository<Comment> =
+        context.AppDataSource.getRepository(Comment);
+      const comments = await commentRepository.find({
+        where: { article: { id: article.id } },
+        take: limit,
+        skip: offset,
+      });
+      return comments;
+    } catch (error: any) {
+      logger.error('Error fetching article comments:', error);
+      return null;
+    }
+  }
+
+  /** --- Created Date and Updated Date Resolvers */
+  @FieldResolver(() => String)
+  creationtime(@Root() article: Article): string {
+    return article.creationtime.toISOString();
+  }
+
+  @FieldResolver(() => String)
+  updatetime(@Root() article: Article): string {
+    return article.updatetime.toISOString();
   }
 }
