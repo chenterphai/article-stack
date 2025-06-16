@@ -31,6 +31,7 @@ import {
   ArticleResponse,
   ArticlesResponse,
   CreateArticleResponse,
+  DeleteArticleResponse,
   UpdateArticleResponse,
 } from '../types/response.type';
 import { CreateArticleInput, UpdateArticleInput } from '../types/input.type';
@@ -189,6 +190,8 @@ export class ArticleResolver {
   }
 
   @Mutation(() => UpdateArticleResponse)
+  @UseMiddleware(authenticate)
+  @UseMiddleware(authorize(['admin', 'user']))
   async updateArticle(
     @Arg('input') input: UpdateArticleInput,
     @Ctx() context: GraphQLContext,
@@ -268,6 +271,48 @@ export class ArticleResolver {
           msg: error.message || 'Failed to update article.',
         },
         content: null,
+      };
+    }
+  }
+
+  @Mutation(() => DeleteArticleResponse)
+  async deleteArticle(
+    @Arg('id') id: string,
+    @Ctx() context: GraphQLContext,
+  ): Promise<DeleteArticleResponse> {
+    try {
+      const article = await this.articleRepository.findOne({
+        where: { id: parseInt(id, 10) },
+      });
+      if (!article) {
+        return {
+          status: {
+            code: 1,
+            status: 'NOT_FOUND',
+            msg: `Article with ID ${id} not found.`,
+          },
+          content: { message: `Article with ID ${id} not found.` },
+        };
+      }
+
+      await this.articleRepository.remove(article);
+      return {
+        status: {
+          code: 0,
+          status: 'OK',
+          msg: `Article with ID ${id} deleted successfully.`,
+        },
+        content: { message: `Article with ID ${id} deleted successfully.` },
+      };
+    } catch (error: any) {
+      console.error('Error deleting article:', error);
+      return {
+        status: {
+          code: 1,
+          status: 'ERROR',
+          msg: error.message || 'Failed to delete article.',
+        },
+        content: { message: error.message || 'Failed to delete article.' },
       };
     }
   }
