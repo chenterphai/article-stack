@@ -34,6 +34,7 @@ export const authenticate: MiddlewareFn<GraphQLContext> = async (
       extensions: {
         code: 'UNAUTHENTICATED',
         http: { status: 401 },
+        msg: 'Unauthorized: Missing Bearer token.',
       },
     });
   }
@@ -43,6 +44,7 @@ export const authenticate: MiddlewareFn<GraphQLContext> = async (
       extensions: {
         code: 'UNAUTHENTICATED',
         http: { status: 401 },
+        msg: 'Unauthorized: Token not provided.',
       },
     });
   }

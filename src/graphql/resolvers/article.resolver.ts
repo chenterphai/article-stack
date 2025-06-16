@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Article } from '@/entities/article.entities';
+import { Article, ArticleStatus } from '@/entities/article.entities';
 import { Comment } from '@/entities/comment.entities';
 import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
 import {
   Arg,
   Ctx,
+  ID,
   Int,
   Mutation,
   Query,
@@ -27,6 +28,7 @@ import {
 } from 'type-graphql';
 import { Repository } from 'typeorm';
 import {
+  ArticleResponse,
   ArticlesResponse,
   CreateArticleResponse,
 } from '../types/response.type';
@@ -56,6 +58,7 @@ export class ArticleResolver {
   ): Promise<ArticlesResponse> {
     try {
       const articles = await this.articleRepository.find({
+        where: { status: ArticleStatus.PUBLISHED },
         relations: ['author'],
         take: limit,
         skip: offset,
@@ -74,6 +77,44 @@ export class ArticleResolver {
           code: 1,
           status: 'ERROR',
           msg: error.message || 'Failed to fetch articles.',
+        },
+        content: null,
+      };
+    }
+  }
+
+  @Query(() => ArticleResponse)
+  async article(@Arg('id', () => ID) id: string): Promise<ArticleResponse> {
+    try {
+      const article = await this.articleRepository.findOne({
+        where: { id: parseInt(id, 10) },
+        relations: ['author', 'comments'],
+      });
+      if (!article) {
+        return {
+          status: {
+            code: 1,
+            status: 'NOT_FOUND',
+            msg: `Article with ID ${id} not found.`,
+          },
+          content: null,
+        };
+      }
+      return {
+        status: {
+          code: 0,
+          status: 'OK',
+          msg: `Article with ID ${id} fetched successfully.`,
+        },
+        content: { data: article },
+      };
+    } catch (error) {
+      logger.error(error);
+      return {
+        status: {
+          code: 0,
+          status: 'INTERNAL_SERVER_ERROR',
+          msg: `Error while fetching article.`,
         },
         content: null,
       };

@@ -47,12 +47,27 @@ export class ArticlesContent extends ListContent<Article> {
 }
 
 @ObjectType()
+export class ArticleContent {
+  @Field(() => Article, { nullable: true })
+  data!: Article | null;
+}
+
+@ObjectType()
 export class ArticlesResponse {
   @Field(() => ResponseStatus)
   status!: ResponseStatus;
 
   @Field(() => ArticlesContent, { nullable: true })
   content!: ArticlesContent | null;
+}
+
+@ObjectType()
+export class ArticleResponse {
+  @Field(() => ResponseStatus)
+  status!: ResponseStatus;
+
+  @Field(() => ArticleContent, { nullable: true })
+  content!: ArticleContent | null;
 }
 
 // Create
