@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { Article } from '@/entities/article.entities';
+import { Comment } from '@/entities/comment.entities';
 import { User } from '@/entities/user.entities';
 import { Field, Int, ObjectType } from 'type-graphql';
 
@@ -47,7 +48,7 @@ export class ArticlesContent extends ListContent<Article> {
 }
 
 @ObjectType()
-export class ArticleContent {
+class SingleArticleContent {
   @Field(() => Article, { nullable: true })
   data!: Article | null;
 }
@@ -66,17 +67,18 @@ export class ArticleResponse {
   @Field(() => ResponseStatus)
   status!: ResponseStatus;
 
-  @Field(() => ArticleContent, { nullable: true })
-  content!: ArticleContent | null;
+  @Field(() => SingleArticleContent, { nullable: true })
+  content!: SingleArticleContent | null;
 }
 
-// Create
+/** --- Create article content --- */
 @ObjectType()
-export class CreateArticleContent extends SingleContent<Article> {
+class CreateArticleContent extends SingleContent<Article> {
   @Field(() => Article)
   data!: Article;
 }
 
+/** --- Create article respnse --- */
 @ObjectType()
 export class CreateArticleResponse {
   @Field(() => ResponseStatus)
@@ -84,6 +86,38 @@ export class CreateArticleResponse {
 
   @Field(() => CreateArticleContent, { nullable: true })
   content!: CreateArticleContent | null;
+}
+
+/** --- Update Article Content --- */
+@ObjectType()
+class UpdateArticleContent extends SingleContent<Article> {
+  @Field(() => Article)
+  data!: Article;
+}
+
+/** --- Update article response --- */
+@ObjectType()
+export class UpdateArticleResponse {
+  @Field(() => ResponseStatus)
+  status!: ResponseStatus;
+  @Field(() => UpdateArticleContent, { nullable: true })
+  content!: UpdateArticleContent | null;
+}
+
+/** --- Delete article content --- */
+@ObjectType()
+class DeleteArticleContent {
+  @Field()
+  message!: string;
+}
+
+/** --- Delete article response --- */
+@ObjectType()
+export class DeleteArticleResponse {
+  @Field(() => ResponseStatus)
+  status!: ResponseStatus;
+  @Field(() => DeleteArticleContent, { nullable: true })
+  content!: DeleteArticleContent | null;
 }
 
 /**
@@ -135,4 +169,73 @@ export class AuthResponse {
 
   @Field(() => AuthContent, { nullable: true })
   content!: AuthContent | null;
+}
+
+/**
+ * Comments
+ * All types related to comment, will be defined here.
+ */
+
+/** --- List comment content --- */
+@ObjectType()
+class CommentsContent extends ListContent<Comment> {
+  @Field(() => [Comment], { nullable: true })
+  data!: Comment[] | null;
+}
+
+/** --- List comment response --- */
+@ObjectType()
+export class CommentsResponse {
+  @Field(() => ResponseStatus)
+  status!: ResponseStatus;
+  @Field(() => CommentsContent, { nullable: true })
+  content!: CommentsContent | null;
+}
+
+/** --- Single comment content --- */
+@ObjectType()
+class SingleCommentContent extends SingleContent<Comment> {
+  @Field(() => Comment, { nullable: true })
+  data!: Comment | null;
+}
+
+/** --- Single Comment Response --- */
+@ObjectType()
+export class CommentResponse {
+  @Field(() => ResponseStatus)
+  status!: ResponseStatus;
+  @Field(() => SingleCommentContent, { nullable: true })
+  content!: SingleCommentContent | null;
+}
+
+/** --- Create comment content --- */
+@ObjectType()
+class CreateCommentContent extends SingleContent<Comment> {
+  @Field(() => Comment)
+  data!: Comment;
+}
+
+/** --- Create comment response --- */
+@ObjectType()
+export class CreateCommentResponse {
+  @Field(() => ResponseStatus)
+  status!: ResponseStatus;
+  @Field(() => CreateCommentContent, { nullable: true })
+  content!: CreateCommentContent | null;
+}
+
+/** --- Delete Comment Content */
+@ObjectType()
+class DeleteCommentContent {
+  @Field()
+  message!: string;
+}
+
+/** --- Delete Comment Response */
+@ObjectType()
+export class DeleteCommentResponse {
+  @Field(() => ResponseStatus)
+  status!: ResponseStatus;
+  @Field(() => DeleteCommentContent, { nullable: true })
+  content!: DeleteCommentContent | null;
 }

@@ -31,8 +31,9 @@ import {
   ArticleResponse,
   ArticlesResponse,
   CreateArticleResponse,
+  UpdateArticleResponse,
 } from '../types/response.type';
-import { CreateArticleInput } from '../types/input.type';
+import { CreateArticleInput, UpdateArticleInput } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
 import { authenticate } from '@/middleware/authenticate';
@@ -181,6 +182,90 @@ export class ArticleResolver {
           code: 1,
           status: 'ERROR',
           msg: error.message || 'Failed to create articles.',
+        },
+        content: null,
+      };
+    }
+  }
+
+  @Mutation(() => UpdateArticleResponse)
+  async updateArticle(
+    @Arg('input') input: UpdateArticleInput,
+    @Ctx() context: GraphQLContext,
+  ): Promise<UpdateArticleResponse> {
+    // Destrcuture input
+    const { id, authorId, content, slug, status, title } = input;
+    try {
+      // Validate article: check if has article
+      const article = await this.articleRepository.findOne({
+        where: { id: parseInt(id, 10) },
+      });
+      if (!article) {
+        return {
+          status: {
+            code: 1,
+            status: 'NOT_FOUND',
+            msg: `Article with ID ${id} not found.`,
+          },
+          content: null,
+        };
+      }
+
+      // Validate author
+      if (authorId !== undefined) {
+        const newAuthor = await this.userRepository.findOne({
+          where: { id: authorId },
+        });
+        if (!newAuthor) {
+          return {
+            status: {
+              code: 1,
+              status: 'NOT_FOUND',
+              msg: `New author with ID ${authorId} not found.`,
+            },
+            content: null,
+          };
+        }
+        article.author = newAuthor;
+      }
+
+      //Validate slug: if slug already exists
+      if (slug !== undefined && slug !== article.slug) {
+        const existingSlug = await this.articleRepository.findOne({
+          where: { slug: slug },
+        });
+        if (existingSlug) {
+          return {
+            status: {
+              code: 1,
+              status: 'CONFLICT',
+              msg: `Slug "${slug}" is already in use by another article.`,
+            },
+            content: null,
+          };
+        }
+        article.slug = slug;
+      }
+
+      // Update article
+      if (title) article.title = title;
+      if (content) article.content = content;
+      if (status) article.status = status;
+      article.updatetime = new Date();
+
+      // Save new update article
+      await this.articleRepository.save(article);
+      return {
+        status: { code: 0, status: 'OK', msg: 'Article updated successfully.' },
+        content: { data: article },
+      };
+    } catch (error: any) {
+      console.error('Error updating article:', error);
+      return {
+        status: {
+          code: 1,
+          status: 'ERROR',
+          msg: error.message || 'Failed to update article.',
         },
         content: null,
       };

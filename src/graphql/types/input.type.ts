@@ -14,11 +14,17 @@
 
 import { ArticleStatus } from '@/entities/article.entities';
 import { Gender, Role } from '@/entities/user.entities';
-import { Field, InputType, Int } from 'type-graphql';
+import { Field, ID, InputType, Int } from 'type-graphql';
+
+/**--- Validator --- */
 import { MaxLength, IsEmail, Length, IsIn } from 'class-validator';
 
-// ARTICLES
+/**
+ * ARTICLE
+ * All input types for article will be defined here
+ */
 
+/**--- Create Article Input --- */
 @InputType()
 export class CreateArticleInput {
   @Field()
@@ -37,8 +43,36 @@ export class CreateArticleInput {
   status!: ArticleStatus;
 }
 
-// AUTH & USER
+/**--- Update Article Input --- */
+@InputType()
+export class UpdateArticleInput {
+  @Field(() => ID)
+  id!: string; // Use string for ID in input
 
+  @Field({ nullable: true })
+  title?: string;
+
+  @Field(() => String, { nullable: true })
+  content?: string;
+
+  @Field(() => String, { nullable: true })
+  slug?: string;
+
+  @Field(() => Int, { nullable: true }) // Author ID
+  authorId?: number;
+
+  @Field(() => ArticleStatus, { nullable: true }) // Use ArticleStatus enum
+  status?: ArticleStatus;
+}
+
+/** --- END OF ARTICLE --- */
+
+/**
+ * AUTH & USER
+ * All input types of user entity will be defined below
+ */
+
+/** --- User registration input --- */
 @InputType()
 export class RegisterInput {
   @Field(() => String)
@@ -67,6 +101,7 @@ export class RegisterInput {
   role!: Role;
 }
 
+/** --- User login input --- */
 @InputType()
 export class LoginInput {
   @Field()
@@ -74,4 +109,34 @@ export class LoginInput {
 
   @Field()
   password!: string;
+}
+
+/** --- END OF AUTH & USER --- */
+
+/**
+ * Comment
+ * All input types of comment will be defined here
+ */
+
+/**--- Create comment input --- */
+@InputType()
+export class CreateCommentInput {
+  @Field(() => String)
+  content!: string;
+
+  @Field(() => Int) // Author ID of the comment
+  authorId!: number;
+
+  @Field(() => Int) // Article ID the comment belongs to
+  articleId!: number;
+}
+
+/** --- Update comment input --- */
+@InputType()
+export class UpdateCommentInput {
+  @Field(() => Int)
+  id!: number;
+
+  @Field(() => String, { nullable: true })
+  content?: string;
 }
