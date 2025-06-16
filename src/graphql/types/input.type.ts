@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ArticleStatus } from '@/entities/article.entities';
+import {
+  ArticleSortField,
+  ArticleStatus,
+  SortDirection,
+} from '@/entities/article.entities';
 import { Gender, Role } from '@/entities/user.entities';
 import { Field, ID, InputType, Int } from 'type-graphql';
 
@@ -63,6 +67,18 @@ export class UpdateArticleInput {
 
   @Field(() => ArticleStatus, { nullable: true }) // Use ArticleStatus enum
   status?: ArticleStatus;
+}
+
+/** --- Sort Article */
+@InputType()
+export class ArticleSortInput {
+  @Field(() => ArticleSortField, {
+    defaultValue: ArticleSortField.CREATION_TIME,
+  })
+  field!: ArticleSortField;
+
+  @Field(() => SortDirection, { defaultValue: SortDirection.DESC })
+  direction!: SortDirection;
 }
 
 /** --- END OF ARTICLE --- */

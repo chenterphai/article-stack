@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Article, ArticleStatus } from '@/entities/article.entities';
+import {
+  Article,
+  ArticleSortField,
+  ArticleStatus,
+  SortDirection,
+} from '@/entities/article.entities';
 import { Comment } from '@/entities/comment.entities';
 import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
@@ -34,7 +39,11 @@ import {
   DeleteArticleResponse,
   UpdateArticleResponse,
 } from '../types/response.type';
-import { CreateArticleInput, UpdateArticleInput } from '../types/input.type';
+import {
+  ArticleSortInput,
+  CreateArticleInput,
+  UpdateArticleInput,
+} from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
 import { authenticate } from '@/middleware/authenticate';
@@ -57,13 +66,27 @@ export class ArticleResolver {
   async articles(
     @Arg('liimit', () => Int, { nullable: true }) limit: number,
     @Arg('offset', () => Int, { nullable: true }) offset: number,
+    @Arg('sort', () => ArticleSortInput, {
+      nullable: true,
+      defaultValue: {
+        field: ArticleSortField.CREATION_TIME,
+        direction: SortDirection.DESC,
+      },
+    })
+    sort: ArticleSortInput,
   ): Promise<ArticlesResponse> {
     try {
+      // Build the order object dynamically
+      const order: { [key: string]: 'ASC' | 'DESC' } = {};
+
+      order[sort.field] = sort.direction;
+
       const articles = await this.articleRepository.find({
         where: { status: ArticleStatus.PUBLISHED },
         relations: ['author'],
         take: limit,
         skip: offset,
+        order: order,
       });
       return {
         status: {
@@ -126,7 +149,7 @@ export class ArticleResolver {
   /**---- Article Mutation ---- */
   @Mutation(() => CreateArticleResponse)
   @UseMiddleware(authenticate)
-  @UseMiddleware(authorize(['admin']))
+  @UseMiddleware(authorize(['admin', 'user']))
   async createArticle(
     @Arg('input') input: CreateArticleInput,
     @Ctx() context: GraphQLContext,

@@ -33,6 +33,27 @@ registerEnumType(ArticleStatus, {
   description: 'Article Status',
 });
 
+export enum SortDirection {
+  ASC = 'ASC',
+  DESC = 'DESC',
+}
+registerEnumType(SortDirection, {
+  name: 'SortDirection',
+  description: 'Ascending or Descending sort order.',
+});
+
+// Specific fields an Article can be sorted by
+export enum ArticleSortField {
+  CREATION_TIME = 'creationtime', // Maps directly to entity column name
+  TITLE = 'title',
+  SLUG = 'slug',
+  // Add other sortable fields as needed
+}
+registerEnumType(ArticleSortField, {
+  name: 'ArticleSortField',
+  description: 'Fields by which articles can be sorted.',
+});
+
 @ObjectType()
 @Entity({ name: 'fa_articles' })
 export class Article {
