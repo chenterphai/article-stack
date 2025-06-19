@@ -30,15 +30,17 @@ export const customAuthChecker: AuthChecker<GraphQLContext> = (
   // and check the user's permission against the `roles` argument
   // that comes from the '@Authorized' decorator, eg. ["ADMIN", "MODERATOR"]
   const authHeader = context.req.headers.authorization;
-  const token = authHeader?.split(' ')[0];
+  const token = authHeader?.split(' ')[1];
+
+  if (!authHeader?.startsWith('Bearer')) {
+    logger.error('Access token must be start with Bearer.');
+    return false;
+  }
 
   if (!token) {
     return false;
   }
 
-  if (token?.startsWith('Bearer')) {
-    return true;
-  }
   try {
     const jwtPayload = verifyAccessToken(token) as AuthenticatedUser;
     context.req.userId = jwtPayload.userId;

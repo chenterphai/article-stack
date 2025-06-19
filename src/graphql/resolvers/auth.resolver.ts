@@ -95,28 +95,19 @@ export class AuthResolver {
     }
   }
 
-  @Mutation(() => AuthResponse)
+  @Mutation(() => User, { nullable: true })
   @Authorized()
+  async userProfile(@Ctx() context: GraphQLContext): Promise<User | null> {
+    const userId = context.req.userId;
+    return await this.authService.profile(userId!);
+  }
+
+  @Mutation(() => AuthResponse)
   async refreshToken(@Ctx() context: GraphQLContext): Promise<AuthResponse> {
     const authHeader = context.req.headers.authorization;
     const refreshToken = authHeader?.split(' ')[1];
-    const userId = String(context.req.userId);
-
-    if (!userId) {
-      return {
-        status: {
-          code: 401,
-          status: 'UNAUTHENTICATED',
-          msg: 'User ID not available in context, authentication failed.',
-        },
-        content: null,
-      };
-    }
     try {
-      const result = await this.authService.refreshTokens(
-        refreshToken!,
-        userId,
-      );
+      const result = await this.authService.refreshTokens(refreshToken!);
       return {
         status: {
           code: 0,

@@ -17,6 +17,7 @@ import { User } from '@/entities/user.entities';
 import {
   generateAccessToken,
   generateRefreshToken,
+  verifyAccessToken,
   verifyRefreshToken,
 } from '@/libs/jwt';
 import { logger } from '@/libs/winston';
@@ -173,10 +174,7 @@ export class AuthService {
   }
 
   // --- REFRESH TOKEN METHOD ---
-  async refreshTokens(
-    refreshToken: string,
-    userId: string,
-  ): Promise<{
+  async refreshTokens(refreshToken: string): Promise<{
     accessToken: string;
     refreshToken: string;
     msg?: string;
@@ -211,10 +209,9 @@ export class AuthService {
     }
 
     if (!payload.username) {
-      // This case might mean the refresh token's payload is malformed or missing expected data
+      // This case might mean the refresh token's payload is malformed or missing expected datax
       logger.error(
         'AuthService: Username not found in refresh token payload for user ID:',
-        userId,
       );
       return {
         code: 401,
@@ -226,10 +223,16 @@ export class AuthService {
     }
 
     // Generate new access token
-    const newAccessToken = generateAccessToken(userId, payload.username);
+    const newAccessToken = generateAccessToken(
+      payload.userId,
+      payload.username,
+    );
 
     // Generate new refresh token
-    const newRefreshToken = generateRefreshToken(userId, payload.username);
+    const newRefreshToken = generateRefreshToken(
+      payload.userId,
+      payload.username,
+    );
 
     return {
       code: 0,
@@ -238,5 +241,21 @@ export class AuthService {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
     };
+  }
+
+  // --- USER PROFILE METHOD ---
+  async profile(userId: number): Promise<User | null> {
+    if (!userId) {
+      logger.error(`No User ID provided.`);
+      return null;
+    }
+    try {
+      return await this.userRepository.findOne({
+        where: { id: userId },
+      });
+    } catch (error) {
+      logger.error(`Error while user request profile.`, error);
+      return null;
+    }
   }
 }
