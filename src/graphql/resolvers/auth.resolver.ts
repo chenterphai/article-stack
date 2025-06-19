@@ -25,15 +25,17 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
 } from '@/libs/jwt';
-import config from '@/config';
 import { logger } from '@/libs/winston';
+import { AuthService } from '../services/auth.service';
 
 @Resolver(() => User)
 export class AuthResolver {
   private userRepository: Repository<User>;
+  private authService: AuthService;
 
   constructor() {
     this.userRepository = AppDataSource.getRepository(User);
+    this.authService = new AuthService();
   }
 
   @Mutation(() => AuthResponse)
@@ -46,6 +48,7 @@ export class AuthResolver {
         where: [{ username: input.username }, { email: input.email }],
       });
       if (existingUser) {
+        logger.warn(`Username or email already exists.`);
         return {
           status: {
             code: 0,
@@ -159,58 +162,31 @@ export class AuthResolver {
   @Authorized()
   async refreshToken(@Ctx() context: GraphQLContext): Promise<AuthResponse> {
     const authHeader = context.req.headers.authorization;
-
     const refreshToken = authHeader?.split(' ')[1];
+    const userId = String(context.req.userId);
 
+    if (!userId) {
+      return {
+        status: {
+          code: 401,
+          status: 'UNAUTHENTICATED',
+          msg: 'User ID not available in context, authentication failed.',
+        },
+        content: null,
+      };
+    }
+    if (!refreshToken) {
+      return {
+        status: {
+          code: 401,
+          status: 'UNAUTHENTICATED',
+          msg: 'Refresh token not available, authentication failed.',
+        },
+        content: null,
+      };
+    }
     try {
-      if (!refreshToken) {
-        return {
-          status: {
-            code: 401,
-            status: 'UNAUTHENTICATED',
-            msg: 'No refresh token provided',
-          },
-          content: null,
-        };
-      }
-
-      // Verify and get payload from refreshToken
-      let payload: any;
-      try {
-        payload = verifyRefreshToken(refreshToken);
-      } catch (err) {
-        logger.error('Invalid refresh token:', err);
-        return {
-          status: {
-            code: 403,
-            status: 'FORBIDDEN',
-            msg: 'Invalid refresh token',
-          },
-          content: null,
-        };
-      }
-
-      // Generate new access token
-      if (!payload.username) {
-        return {
-          status: {
-            code: 401,
-            status: 'UNAUTHENTICATED',
-            msg: 'No username found in request context',
-          },
-          content: null,
-        };
-      }
-      const newAccessToken = generateAccessToken(
-        String(context.req.userId),
-        payload.username,
-      );
-
-      // Generate new refresh token
-      const newRefreshToken = generateRefreshToken(
-        String(context.req.userId),
-        payload.username,
-      );
+      const result = await this.authService.refreshTokens(refreshToken, userId);
       return {
         status: {
           code: 0,
@@ -218,12 +194,13 @@ export class AuthResolver {
           msg: 'Tokens refreshed successfully.',
         },
         content: {
-          accessToken: newAccessToken,
-          refreshToken: newRefreshToken,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
           data: null,
         },
       };
     } catch (error: any) {
+      logger.error('AuthResolver: Error refreshing token:', error);
       return {
         status: {
           code: 500,

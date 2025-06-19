@@ -18,10 +18,10 @@ import {
   SortDirection,
 } from '@/entities/article.entities';
 import { Gender, Role } from '@/entities/user.entities';
-import { Field, ID, InputType, Int } from 'type-graphql';
+import { Field, InputType, Int } from 'type-graphql';
 
 /**--- Validator --- */
-import { MaxLength, IsEmail, Length, IsIn } from 'class-validator';
+import { IsEmail, Length, IsIn } from 'class-validator';
 
 /**
  * ARTICLE
@@ -40,16 +40,13 @@ export class CreateArticleInput {
   @Field(() => String)
   slug!: string;
 
-  @Field(() => ArticleStatus, { defaultValue: ArticleStatus.DRAFT })
+  @Field(() => ArticleStatus, { defaultValue: ArticleStatus.PUBLISHED })
   status!: ArticleStatus;
 }
 
 /**--- Update Article Input --- */
 @InputType()
 export class UpdateArticleInput {
-  @Field(() => ID)
-  id!: string; // Use string for ID in input
-
   @Field({ nullable: true })
   title?: string;
 
@@ -122,6 +119,28 @@ export class LoginInput {
 
   @Field()
   password!: string;
+}
+
+/** --- Update User Input --- */
+@InputType()
+export class UpdateProfileInput {
+  @Field({ nullable: true })
+  username?: string;
+
+  @Field({ nullable: true })
+  nickname?: string;
+
+  @Field({ nullable: true })
+  avatar?: string;
+
+  @Field({ nullable: true })
+  email?: string;
+
+  @Field({ nullable: true })
+  gender?: Gender;
+
+  @Field(() => Date)
+  updatetime?: Date;
 }
 
 /** --- END OF AUTH & USER --- */

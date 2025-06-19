@@ -15,54 +15,12 @@
 import { GraphQLContext } from '@/@types/context';
 import { verifyAccessToken } from '@/libs/jwt';
 import { logger } from '@/libs/winston';
-import { NextFunction } from 'express';
-import { GraphQLError } from 'graphql';
-import { AuthChecker, MiddlewareFn } from 'type-graphql';
+import { AuthChecker } from 'type-graphql';
 
 interface AuthenticatedUser {
   userId: number;
   username: string;
 }
-
-export const authenticate: MiddlewareFn<GraphQLContext> = async (
-  { context },
-  next: NextFunction,
-) => {
-  const authHeader = context.req.headers.authorization || '';
-  if (!authHeader.startsWith('Bearer ')) {
-    throw new GraphQLError('Unauthorized: Missing Bearer token.', {
-      extensions: {
-        code: 'UNAUTHENTICATED',
-        http: { status: 401 },
-        msg: 'Unauthorized: Missing Bearer token.',
-      },
-    });
-  }
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    throw new GraphQLError('Unauthorized: Token not provided.', {
-      extensions: {
-        code: 'UNAUTHENTICATED',
-        http: { status: 401 },
-        msg: 'Unauthorized: Token not provided.',
-      },
-    });
-  }
-  try {
-    const jwtPayload = verifyAccessToken(token) as AuthenticatedUser;
-    context.req.userId = jwtPayload.userId;
-    context.req.username = jwtPayload.username;
-    logger.info(`User ${jwtPayload.userId} authenticated.`);
-    return next();
-  } catch (error) {
-    throw new GraphQLError('Unauthorized: Invalid or expired token.', {
-      extensions: {
-        code: 'UNAUTHENTICATED',
-        http: { status: 401 },
-      },
-    });
-  }
-};
 
 export const customAuthChecker: AuthChecker<GraphQLContext> = (
   { root, args, context, info },
@@ -81,6 +39,12 @@ export const customAuthChecker: AuthChecker<GraphQLContext> = (
   if (token?.startsWith('Bearer')) {
     return true;
   }
-
-  return false;
+  try {
+    const jwtPayload = verifyAccessToken(token) as AuthenticatedUser;
+    context.req.userId = jwtPayload.userId;
+    return true;
+  } catch (error) {
+    logger.error('Unauthorized. Invalid or expired token.');
+    return false;
+  }
 };

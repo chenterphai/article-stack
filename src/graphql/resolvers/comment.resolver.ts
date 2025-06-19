@@ -33,7 +33,6 @@ import {
 import { logger } from '@/libs/winston';
 import { CreateCommentInput } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
-import { authenticate } from '@/middleware/authenticate';
 
 @Resolver(() => Comment)
 export class CommentResolver {
@@ -120,7 +119,6 @@ export class CommentResolver {
   }
 
   @Mutation(() => DeleteCommentResponse)
-  @UseMiddleware(authenticate)
   async deleteCommentResponse(
     @Arg('id') id: number,
   ): Promise<DeleteCommentResponse> {

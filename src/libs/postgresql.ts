@@ -15,19 +15,37 @@
 // Node Modules
 import { DataSource } from 'typeorm';
 import path from 'path';
+import * as fs from 'fs';
 
 // Custom Modules
 import config from '@/config';
 import { logger } from '@/libs/winston';
 
+const CA_CERT_PATH = path.join(
+  __dirname,
+  '..',
+  '..',
+  'certs',
+  'ca-certificate.pem',
+);
+
+const sslCaCert = fs.readFileSync(CA_CERT_PATH).toString();
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  url: config.DATABASE_URL,
+  username: 'avnadmin',
+  password: 'AVNS_cyWeQFLbVsa0hyKYBG-',
+  host: 'pg-e9c9ffa-intellinex.c.aivencloud.com',
+  port: 11921,
   database: 'articlestackdb',
-  synchronize: true, // use migrations in production!
+  synchronize: false,
   logging: false,
+  ssl: {
+    rejectUnauthorized: true,
+    ca: sslCaCert,
+  },
   entities: [path.join(__dirname, '..', 'entities', '**', '*.{ts,js}')],
-  migrations: [path.join(__dirname, '..', 'entities', '**', '*.{ts,js}')],
+  migrations: [path.join(__dirname, '..', 'migrations', '**', '*.{ts,js}')],
   subscribers: [],
 });
 
