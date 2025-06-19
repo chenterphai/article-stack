@@ -24,6 +24,12 @@ const config = {
   DATABASE_URL: process.env.DATABASE_URL as string,
   WHITELIST_ORIGINS: ['http://localhost:3000'],
 
+  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_USERNAME: process.env.DB_USERNAME,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: Number(process.env.DB_PORT),
+  DB_NAME: process.env.DB_NAME,
+
   JWT_SECRET_KEY: process.env.JWT_SECRET_KEY as string,
   JWT_REFRESH_KEY: process.env.JWT_REFRESH_KEY as string,
   ACCESS_TOKEN_EXPIRY: process.env.ACCESS_TOKEN_EXPIRY as ms.StringValue,

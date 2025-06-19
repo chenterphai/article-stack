@@ -33,11 +33,11 @@ const sslCaCert = fs.readFileSync(CA_CERT_PATH).toString();
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  username: 'avnadmin',
-  password: 'AVNS_cyWeQFLbVsa0hyKYBG-',
-  host: 'pg-e9c9ffa-intellinex.c.aivencloud.com',
-  port: 11921,
-  database: 'articlestackdb',
+  username: config.DB_USERNAME,
+  password: config.DB_PASSWORD,
+  host: config.DB_HOST,
+  port: config.DB_PORT,
+  database: config.DB_NAME,
   synchronize: false,
   logging: false,
   ssl: {
