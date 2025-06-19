@@ -56,14 +56,14 @@ registerEnumType(ArticleSortField, {
   description: 'Fields by which articles can be sorted.',
 });
 
-// export enum PostType {
-//   ARTICLE = 'Article',
-//   COMPONENT = 'Component',
-// }
+export enum PostType {
+  ARTICLE = 'Article',
+  COMPONENT = 'Component',
+}
 
-// registerEnumType(PostType, {
-//   name: 'PostType',
-// });
+registerEnumType(PostType, {
+  name: 'PostType',
+});
 
 @ObjectType()
 @Entity({ name: 'fa_articles' })
