@@ -116,13 +116,6 @@ export class ArticleResolver {
 
       const articles = await queryBuilder.getMany();
 
-      // const articles = await this.articleRepository.find({
-      //   where: { status: ArticleStatus.PUBLISHED },
-      //   relations: ['author'],
-      //   take: limit,
-      //   skip: offset,
-      //   order: order,
-      // });
       return {
         status: {
           code: 0,
@@ -143,23 +136,20 @@ export class ArticleResolver {
     }
   }
 
-  @Query(() => ArticleResponse)
-  async article(@Arg('id', () => ID) id: string): Promise<ArticleResponse> {
+  @Query(() => ArticleResponse, { nullable: true })
+  async article(
+    @Arg('id', () => ID) id: number,
+    @Ctx() context: GraphQLContext,
+  ): Promise<ArticleResponse | null> {
     try {
       const article = await this.articleRepository.findOne({
-        where: { id: parseInt(id, 10) },
+        where: { id },
         relations: ['author', 'comments'],
       });
       if (!article) {
-        return {
-          status: {
-            code: 1,
-            status: 'NOT_FOUND',
-            msg: `Article with ID ${id} not found.`,
-          },
-          content: null,
-        };
+        return null;
       }
+
       return {
         status: {
           code: 0,
@@ -170,14 +160,7 @@ export class ArticleResolver {
       };
     } catch (error) {
       logger.error(error);
-      return {
-        status: {
-          code: 0,
-          status: 'INTERNAL_SERVER_ERROR',
-          msg: `Error while fetching article.`,
-        },
-        content: null,
-      };
+      return null;
     }
   }
 
@@ -346,6 +329,7 @@ export class ArticleResolver {
         where: { id: parseInt(id, 10) },
       });
       if (!article) {
+        context.res.sendStatus(404);
         return {
           status: {
             code: 1,
@@ -376,63 +360,5 @@ export class ArticleResolver {
         content: { message: error.message || 'Failed to delete article.' },
       };
     }
-  }
-
-  /**-- Field Resolvers for Article Type */
-
-  /** --- Handle author field */
-  @FieldResolver(() => User)
-  async author(
-    @Root() article: Article,
-    @Ctx() context: GraphQLContext,
-  ): Promise<User> {
-    if (article.author) {
-      return article.author;
-    }
-
-    const userRepository: Repository<User> =
-      context.AppDataSource.getRepository(User);
-    const fetchedAuthor = await userRepository.findOne({
-      where: { id: (article.author as User).id },
-    });
-    if (!fetchedAuthor) {
-      throw new GraphQLError('Author not found for article.');
-    }
-
-    return fetchedAuthor;
-  }
-
-  /** --- Comments Resolver --- */
-  @FieldResolver(() => Comment) // Return custom response for nested list
-  async comments(
-    @Root() article: Article,
-    @Arg('limit', () => Int, { nullable: true }) limit: number,
-    @Arg('offset', () => Int, { nullable: true }) offset: number,
-    @Ctx() context: GraphQLContext,
-  ): Promise<Comment[] | null> {
-    try {
-      const commentRepository: Repository<Comment> =
-        context.AppDataSource.getRepository(Comment);
-      const comments = await commentRepository.find({
-        where: { article: { id: article.id } },
-        take: limit,
-        skip: offset,
-      });
-      return comments;
-    } catch (error: any) {
-      logger.error('Error fetching article comments:', error);
-      return null;
-    }
-  }
-
-  /** --- Created Date and Updated Date Resolvers */
-  @FieldResolver(() => String)
-  creationtime(@Root() article: Article): string {
-    return article.creationtime.toISOString();
-  }
-
-  @FieldResolver(() => String)
-  updatetime(@Root() article: Article): string {
-    return article.updatetime.toISOString();
   }
 }

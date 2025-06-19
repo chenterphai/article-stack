@@ -15,12 +15,12 @@
 import {
   BaseEntity,
   Column,
+  CreateDateColumn,
   Entity,
   OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import { Token } from './token.entities';
 import { Article } from './article.entities';
 import { Comment } from './comment.entities';
 import { Field, ID, ObjectType, registerEnumType } from 'type-graphql';
@@ -81,37 +81,21 @@ export class User extends BaseEntity {
   gender!: Gender;
 
   @Field(() => Role)
-  @Column({ type: 'text', default: Role.USER, nullable: false }) // Store enum as text for flexibility
+  @Column({ type: 'text', default: Role.USER, nullable: false })
   role!: Role;
-
-  @Field(() => [Token], { nullable: true })
-  @OneToMany(() => Token, (token) => token.user, {
-    cascade: ['insert', 'update', 'remove'], // Cascade operations
-    nullable: true, // A user might not always have an active token initially
-  })
-  token!: Token[]; // Assuming a OneToOne relation with Token
 
   @Field(() => [Article])
   @OneToMany(() => Article, (article) => article.author)
-  articles!: Article[]; // A user can author many articles
+  articles!: Article[];
 
   @OneToMany(() => Comment, (comment) => comment.author)
-  comments!: Comment[]; // A user can make many comments
+  comments!: Comment[];
 
   @Field(() => String)
-  @Column({
-    type: 'timestamptz',
-    default: () => 'CURRENT_TIMESTAMP',
-    nullable: false,
-  })
+  @CreateDateColumn()
   creationtime!: Date;
 
   @Field(() => String)
-  @Column({
-    type: 'timestamptz',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-    nullable: false,
-  })
-  updatetime!: Date;
+  @UpdateDateColumn()
+  updatetime?: Date;
 }

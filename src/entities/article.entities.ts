@@ -14,10 +14,12 @@
 
 import {
   Column,
+  CreateDateColumn,
   Entity,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entities';
 import { Comment } from './comment.entities';
@@ -54,6 +56,15 @@ registerEnumType(ArticleSortField, {
   description: 'Fields by which articles can be sorted.',
 });
 
+// export enum PostType {
+//   ARTICLE = 'Article',
+//   COMPONENT = 'Component',
+// }
+
+// registerEnumType(PostType, {
+//   name: 'PostType',
+// });
+
 @ObjectType()
 @Entity({ name: 'fa_articles' })
 export class Article {
@@ -82,26 +93,17 @@ export class Article {
 
   @Field(() => [Comment], { nullable: true })
   @OneToMany(() => Comment, (comment) => comment.article)
-  comments!: Comment[]; // An article can have many comments
+  comments?: Comment[]; // An article can have many comments
 
   @Field(() => ArticleStatus)
   @Column({ type: 'int', default: ArticleStatus.DRAFT, nullable: false }) // Use 'int' for enum value storage
   status!: ArticleStatus;
 
   @Field(() => String)
-  @Column({
-    type: 'timestamptz',
-    default: () => 'CURRENT_TIMESTAMP',
-    nullable: false,
-  })
+  @CreateDateColumn()
   creationtime!: Date;
 
   @Field(() => String)
-  @Column({
-    type: 'timestamptz',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-    nullable: false,
-  })
-  updatetime!: Date;
+  @UpdateDateColumn()
+  updatetime?: Date;
 }

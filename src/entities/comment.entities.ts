@@ -15,9 +15,11 @@
 import {
   BaseEntity,
   Column,
+  CreateDateColumn,
   Entity,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entities';
 import { Article } from './article.entities';
@@ -49,19 +51,10 @@ export class Comment extends BaseEntity {
   article!: Article;
 
   @Field(() => String)
-  @Column({
-    type: 'timestamptz',
-    default: () => 'CURRENT_TIMESTAMP',
-    nullable: false,
-  })
+  @CreateDateColumn()
   creationtime!: Date;
 
   @Field(() => String)
-  @Column({
-    type: 'timestamptz',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-    nullable: false,
-  })
-  updatetime!: Date;
+  @UpdateDateColumn()
+  updatetime?: Date;
 }

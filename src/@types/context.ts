@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { AppDataSource } from '@/libs/postgresql';
 import type { Request, Response } from 'express';
 
 export interface GraphQLContext {
   token: string | string[] | undefined;
-  AppDataSource: typeof AppDataSource;
   req: Request;
   res: Response;
   user?: any;

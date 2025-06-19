@@ -17,7 +17,7 @@ import { verifyAccessToken } from '@/libs/jwt';
 import { logger } from '@/libs/winston';
 import { NextFunction } from 'express';
 import { GraphQLError } from 'graphql';
-import { MiddlewareFn } from 'type-graphql';
+import { AuthChecker, MiddlewareFn } from 'type-graphql';
 
 interface AuthenticatedUser {
   userId: number;
@@ -62,4 +62,25 @@ export const authenticate: MiddlewareFn<GraphQLContext> = async (
       },
     });
   }
+};
+
+export const customAuthChecker: AuthChecker<GraphQLContext> = (
+  { root, args, context, info },
+  roles,
+) => {
+  // Read user from context
+  // and check the user's permission against the `roles` argument
+  // that comes from the '@Authorized' decorator, eg. ["ADMIN", "MODERATOR"]
+  const authHeader = context.req.headers.authorization;
+  const token = authHeader?.split(' ')[0];
+
+  if (!token) {
+    return false;
+  }
+
+  if (token?.startsWith('Bearer')) {
+    return true;
+  }
+
+  return false;
 };

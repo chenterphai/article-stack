@@ -19,17 +19,14 @@ import { AppDataSource } from '@/libs/postgresql';
 import {
   Arg,
   Ctx,
-  FieldResolver,
   Int,
   Mutation,
   Query,
   Resolver,
-  Root,
   UseMiddleware,
 } from 'type-graphql';
 import { Repository } from 'typeorm';
 import {
-  CommentResponse,
   CreateCommentResponse,
   DeleteCommentResponse,
 } from '../types/response.type';
@@ -49,55 +46,15 @@ export class CommentResolver {
     this.userRepository = AppDataSource.getRepository(User);
     this.articleRepository = AppDataSource.getRepository(Article);
   }
-
-  @Query(() => CommentResponse)
-  async comment(@Arg('id', () => Int) id: number): Promise<CommentResponse> {
-    try {
-      const comment = await this.commentRepository.findOne({
-        where: { id: id },
-        relations: ['author', 'article'],
-      });
-      if (!comment) {
-        return {
-          status: {
-            code: 1,
-            status: 'NOT_FOUND',
-            msg: `Comment with ID ${id} not found.`,
-          },
-          content: null,
-        };
-      }
-      return {
-        status: {
-          code: 0,
-          status: 'OK',
-          msg: `Comment with ID ${id} fetched successfully.`,
-        },
-        content: { data: comment },
-      };
-    } catch (error: any) {
-      logger.error(error.message);
-      return {
-        status: {
-          code: 1,
-          status: 'INTERNAL_SERVER_ERROR',
-          msg: 'Error while fetched a comment',
-        },
-        content: null,
-      };
-    }
-  }
-
   @Mutation(() => CreateCommentResponse)
-  @UseMiddleware(authenticate)
   async createComment(
     @Arg('input') input: CreateCommentInput,
     @Ctx() context: GraphQLContext,
   ): Promise<CreateCommentResponse> {
     try {
-      const { articleId, content } = input;
+      const { articleId } = input;
 
-      const authorId = context.req.userId;
+      const authorId = 1;
 
       const author = await this.userRepository.findOne({
         where: {
@@ -117,23 +74,23 @@ export class CommentResolver {
       }
 
       const article = await this.articleRepository.findOne({
-        where: { id: input.articleId },
+        where: { id: articleId },
       });
       if (!article) {
         return {
           status: {
             code: 1,
             status: 'NOT_FOUND',
-            msg: `Article with ID ${input.articleId} not found.`,
+            msg: `Article with ID ${articleId} not found.`,
           },
           content: null,
         };
       }
 
       const newComment = this.commentRepository.create({
-        content,
-        article,
+        ...input,
         author,
+        article,
         creationtime: new Date(),
         updatetime: new Date(),
       });
@@ -165,11 +122,11 @@ export class CommentResolver {
   @Mutation(() => DeleteCommentResponse)
   @UseMiddleware(authenticate)
   async deleteCommentResponse(
-    @Arg('id') id: string,
+    @Arg('id') id: number,
   ): Promise<DeleteCommentResponse> {
     try {
       const comment = await this.commentRepository.findOne({
-        where: { id: parseInt(id, 10) },
+        where: { id },
       });
       if (!comment) {
         logger.warn('Comment not found.');
@@ -203,25 +160,5 @@ export class CommentResolver {
         content: null,
       };
     }
-  }
-
-  // Field resolvers for Comment Type
-  @FieldResolver(() => User)
-  async author(
-    @Root() comment: Comment,
-    @Ctx() context: GraphQLContext,
-  ): Promise<User> {
-    if (comment.author) {
-      return comment.author;
-    }
-    const userRepository: Repository<User> =
-      context.AppDataSource.getRepository(User);
-    const fetchedAuthor = await userRepository.findOne({
-      where: { id: (comment.author as User).id },
-    });
-    if (!fetchedAuthor) {
-      throw new Error('Author not found for comment.');
-    }
-    return fetchedAuthor;
   }
 }

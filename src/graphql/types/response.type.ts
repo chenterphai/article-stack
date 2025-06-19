@@ -160,6 +160,9 @@ class AuthContent extends SingleContent<User> {
 
   @Field(() => String)
   accessToken!: string;
+
+  @Field(() => String)
+  refreshToken?: string;
 }
 
 @ObjectType()

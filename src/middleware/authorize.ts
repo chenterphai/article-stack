@@ -14,6 +14,7 @@
 
 import { GraphQLContext } from '@/@types/context';
 import { User } from '@/entities/user.entities';
+import { AppDataSource } from '@/libs/postgresql';
 import { logger } from '@/libs/winston';
 import { GraphQLError } from 'graphql';
 import { Repository } from 'typeorm';
@@ -34,7 +35,7 @@ export const authorize =
         });
       }
       const userRepository: Repository<User> =
-        context.AppDataSource.getRepository(User);
+        AppDataSource.getRepository(User);
 
       const user = await userRepository.findOneBy({ id: userId });
 

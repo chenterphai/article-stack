@@ -107,11 +107,11 @@ export class RegisterInput {
 
   @Field(() => Gender, { defaultValue: Gender.OTHER })
   @IsIn(Object.values(Gender))
-  gender!: Gender;
+  gender?: Gender;
 
   @Field(() => Role, { defaultValue: Role.USER })
   @IsIn(Object.values(Role))
-  role!: Role;
+  role?: Role;
 }
 
 /** --- User login input --- */

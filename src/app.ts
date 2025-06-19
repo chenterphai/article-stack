@@ -30,7 +30,8 @@ import limiter from '@/libs/limiter';
 import corsOptions from '@/libs/cors';
 import { resolvers } from '@/graphql/handler';
 import { GraphQLContext } from '@/@types/context';
-import { AppDataSource, connectToDatabase } from './libs/postgresql';
+import { connectToDatabase } from './libs/postgresql';
+import { customAuthChecker } from './middleware/authenticate';
 
 const app = express();
 
@@ -65,6 +66,7 @@ const app = express();
     const schema = await buildSchema({
       resolvers: resolvers as [Function, ...Function[]],
       validate: true,
+      authChecker: customAuthChecker,
     });
 
     const server = new ApolloServer<GraphQLContext>({ schema });
@@ -76,7 +78,6 @@ const app = express();
       expressMiddleware(server, {
         context: async ({ req, res }) => ({
           token: req.headers.token,
-          AppDataSource: AppDataSource,
           req,
           res,
         }),
