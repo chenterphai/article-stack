@@ -15,27 +15,19 @@
 import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
 import { Arg, Authorized, Ctx, Mutation, Resolver } from 'type-graphql';
-import { Repository } from 'typeorm';
 import { AuthResponse } from '../types/response.type';
 import { LoginInput, RegisterInput } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
-import bcrypt from 'bcrypt';
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-} from '@/libs/jwt';
 import { logger } from '@/libs/winston';
 import { AuthService } from '../services/auth.service';
 
 @Resolver(() => User)
 export class AuthResolver {
-  private userRepository: Repository<User>;
   private authService: AuthService;
 
   constructor() {
-    this.userRepository = AppDataSource.getRepository(User);
-    this.authService = new AuthService();
+    const userRepository = AppDataSource.getRepository(User);
+    this.authService = new AuthService(userRepository);
   }
 
   @Mutation(() => AuthResponse)
@@ -44,48 +36,21 @@ export class AuthResolver {
     @Ctx() context: GraphQLContext,
   ): Promise<AuthResponse> {
     try {
-      const existingUser = await this.userRepository.findOne({
-        where: [{ username: input.username }, { email: input.email }],
-      });
-      if (existingUser) {
-        logger.warn(`Username or email already exists.`);
-        return {
-          status: {
-            code: 0,
-            status: 'BAD_REQUEST',
-            msg: 'Username or email already taken.',
-          },
-          content: null,
-        };
-      }
-
-      const hashedPassword = await bcrypt.hash(input.password, 10);
-
-      const newUser = this.userRepository.create({
-        ...input,
-        password: hashedPassword,
-        creationtime: new Date(),
-        updatetime: new Date(),
-      });
-      await this.userRepository.save(newUser);
-
-      const accessToken = generateAccessToken(
-        String(newUser.id),
-        newUser.username,
-      );
-
-      const refrshToken = generateRefreshToken(
-        String(newUser.id),
-        newUser.username,
-      );
-
+      const result = await this.authService.registerUser(input);
       return {
-        status: { code: 0, status: 'OK', msg: 'User registered successfully.' },
-        content: {
-          accessToken,
-          refreshToken: refrshToken,
-          data: newUser,
+        status: {
+          code: result.code,
+          status: result.status,
+          msg: result.msg,
         },
+        content:
+          result.accessToken && result.refreshToken
+            ? {
+                accessToken: result.accessToken,
+                refreshToken: result.refreshToken,
+                data: result.data ?? null,
+              }
+            : null,
       };
     } catch (error) {
       return {
@@ -101,49 +66,21 @@ export class AuthResolver {
     @Ctx() context: GraphQLContext,
   ): Promise<AuthResponse> {
     try {
-      const { password, usernameOrEmail } = input;
-
-      const user = await this.userRepository.findOne({
-        where: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
-      });
-
-      if (!user) {
-        return {
-          status: {
-            code: 1,
-            status: 'NOT_FOUND',
-            msg: `User with username/email ${usernameOrEmail} not found!`,
-          },
-          content: null,
-        };
-      }
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        return {
-          status: {
-            code: 1,
-            status: 'BAD_REQUEST',
-            msg: `Invalid credentials`,
-          },
-          content: null,
-        };
-      }
-      const accessToken = generateAccessToken(String(user.id), user.username);
-      const refrshToken = generateRefreshToken(String(user.id), user.username);
-
-      logger.info(`User logged in succcessfully.`);
-
+      const result = await this.authService.loginUser(input);
       return {
         status: {
-          code: 0,
-          status: 'OK',
-          msg: 'User logged in successfully.',
+          code: result.code,
+          status: result.status,
+          msg: result.msg,
         },
-        content: {
-          accessToken,
-          refreshToken: refrshToken,
-          data: user,
-        },
+        content:
+          result.accessToken && result.refreshToken
+            ? {
+                accessToken: result.accessToken,
+                refreshToken: result.refreshToken,
+                data: result.data ?? null,
+              }
+            : null,
       };
     } catch (error) {
       logger.error(`Error while user logging in.`, error);
@@ -175,18 +112,11 @@ export class AuthResolver {
         content: null,
       };
     }
-    if (!refreshToken) {
-      return {
-        status: {
-          code: 401,
-          status: 'UNAUTHENTICATED',
-          msg: 'Refresh token not available, authentication failed.',
-        },
-        content: null,
-      };
-    }
     try {
-      const result = await this.authService.refreshTokens(refreshToken, userId);
+      const result = await this.authService.refreshTokens(
+        refreshToken!,
+        userId,
+      );
       return {
         status: {
           code: 0,
