@@ -167,8 +167,8 @@ class AuthContent extends SingleContent<User> {
 
 @ObjectType()
 export class AuthResponse {
-  @Field(() => ResponseStatus)
-  status!: ResponseStatus;
+  @Field(() => ResponseStatus, { nullable: true })
+  status?: ResponseStatus;
 
   @Field(() => AuthContent, { nullable: true })
   content!: AuthContent | null;

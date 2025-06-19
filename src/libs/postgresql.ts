@@ -15,19 +15,37 @@
 // Node Modules
 import { DataSource } from 'typeorm';
 import path from 'path';
+import * as fs from 'fs';
 
 // Custom Modules
 import config from '@/config';
 import { logger } from '@/libs/winston';
 
+const CA_CERT_PATH = path.join(
+  __dirname,
+  '..',
+  '..',
+  'certs',
+  'ca-certificate.pem',
+);
+
+const sslCaCert = fs.readFileSync(CA_CERT_PATH).toString();
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  url: config.DATABASE_URL,
-  database: 'articlestackdb',
-  synchronize: true, // use migrations in production!
+  username: config.DB_USERNAME,
+  password: config.DB_PASSWORD,
+  host: config.DB_HOST,
+  port: config.DB_PORT,
+  database: config.DB_NAME,
+  synchronize: false,
   logging: false,
+  ssl: {
+    rejectUnauthorized: true,
+    ca: sslCaCert,
+  },
   entities: [path.join(__dirname, '..', 'entities', '**', '*.{ts,js}')],
-  migrations: [path.join(__dirname, '..', 'entities', '**', '*.{ts,js}')],
+  migrations: [path.join(__dirname, '..', 'migrations', '**', '*.{ts,js}')],
   subscribers: [],
 });
 

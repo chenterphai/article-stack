@@ -18,26 +18,22 @@ import {
   ArticleStatus,
   SortDirection,
 } from '@/entities/article.entities';
-import { Comment } from '@/entities/comment.entities';
 import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
 import {
   Arg,
+  Authorized,
   Ctx,
-  FieldResolver,
   ID,
   Int,
   Mutation,
   Query,
   Resolver,
-  Root,
-  UseMiddleware,
 } from 'type-graphql';
 import { Brackets, Repository } from 'typeorm';
 import {
   ArticleResponse,
   ArticlesResponse,
-  CommentsResponse,
   CreateArticleResponse,
   DeleteArticleResponse,
   UpdateArticleResponse,
@@ -49,26 +45,21 @@ import {
 } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
-import { authenticate } from '@/middleware/authenticate';
-import { authorize } from '@/middleware/authorize';
-import { GraphQLError } from 'graphql';
 
 @Resolver(() => Article) // Main Resolver for Artile entity
 export class ArticleResolver {
   private articleRepository: Repository<Article>;
   private userRepository: Repository<User>;
-  private commentRepository: Repository<Comment>;
 
   constructor() {
     this.articleRepository = AppDataSource.getRepository(Article);
     this.userRepository = AppDataSource.getRepository(User);
-    this.commentRepository = AppDataSource.getRepository(Comment);
   }
 
   /**---- Article Query ---- */
   @Query(() => ArticlesResponse)
   async articles(
-    @Arg('liimit', () => Int, { nullable: true }) limit: number,
+    @Arg('limit', () => Int, { nullable: true }) limit: number,
     @Arg('offset', () => Int, { nullable: true }) offset: number,
     @Arg('sort', () => ArticleSortInput, {
       nullable: true,
@@ -109,7 +100,11 @@ export class ArticleResolver {
 
       queryBuilder
         .leftJoinAndSelect('fa_articles.author', 'fa_users')
-        .leftJoinAndSelect('fa_articles.comments', 'fa_comments')
+        .loadRelationCountAndMap(
+          'fa_articles.commentCount',
+          'fa_articles.comments',
+          'fa_comments_alias',
+        )
         .orderBy(`fa_articles.${sort.field}`, sort.direction)
         .take(limit)
         .skip(offset);
@@ -166,8 +161,7 @@ export class ArticleResolver {
 
   /**---- Article Mutation ---- */
   @Mutation(() => CreateArticleResponse)
-  @UseMiddleware(authenticate)
-  @UseMiddleware(authorize(['admin', 'user']))
+  @Authorized()
   async createArticle(
     @Arg('input') input: CreateArticleInput,
     @Ctx() context: GraphQLContext,
@@ -233,18 +227,17 @@ export class ArticleResolver {
   }
 
   @Mutation(() => UpdateArticleResponse)
-  @UseMiddleware(authenticate)
-  @UseMiddleware(authorize(['admin', 'user']))
   async updateArticle(
+    @Arg('id') id: number,
     @Arg('input') input: UpdateArticleInput,
     @Ctx() context: GraphQLContext,
   ): Promise<UpdateArticleResponse> {
     // Destrcuture input
-    const { id, authorId, content, slug, status, title } = input;
+    const { authorId, slug } = input;
     try {
       // Validate article: check if has article
       const article = await this.articleRepository.findOne({
-        where: { id: parseInt(id, 10) },
+        where: { id },
       });
       if (!article) {
         return {
@@ -276,7 +269,7 @@ export class ArticleResolver {
       }
 
       //Validate slug: if slug already exists
-      if (slug !== undefined && slug !== article.slug) {
+      if (slug && slug !== article.slug) {
         const existingSlug = await this.articleRepository.findOne({
           where: { slug: slug },
         });
@@ -293,14 +286,11 @@ export class ArticleResolver {
         article.slug = slug;
       }
 
-      // Update article
-      if (title) article.title = title;
-      if (content) article.content = content;
-      if (status) article.status = status;
-      article.updatetime = new Date();
+      await this.articleRepository.update(id, {
+        ...input,
+        updatetime: new Date(),
+      });
 
-      // Save new update article
-      await this.articleRepository.save(article);
       return {
         status: { code: 0, status: 'OK', msg: 'Article updated successfully.' },
         content: { data: article },
@@ -319,14 +309,13 @@ export class ArticleResolver {
   }
 
   @Mutation(() => DeleteArticleResponse)
-  @UseMiddleware(authenticate)
   async deleteArticle(
-    @Arg('id') id: string,
+    @Arg('id') id: number,
     @Ctx() context: GraphQLContext,
   ): Promise<DeleteArticleResponse> {
     try {
       const article = await this.articleRepository.findOne({
-        where: { id: parseInt(id, 10) },
+        where: { id },
       });
       if (!article) {
         context.res.sendStatus(404);

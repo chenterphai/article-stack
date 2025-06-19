@@ -23,7 +23,7 @@ import {
 } from 'typeorm';
 import { User } from './user.entities';
 import { Comment } from './comment.entities';
-import { Field, ID, ObjectType, registerEnumType } from 'type-graphql';
+import { Field, ID, Int, ObjectType, registerEnumType } from 'type-graphql';
 
 export enum ArticleStatus {
   DRAFT = 0,
@@ -86,6 +86,13 @@ export class Article {
   @OneToMany(() => Comment, (comment) => comment.article)
   comments?: Comment[]; // An article can have many comments
 
+  @Field(() => Int, { nullable: true })
+  commentCount?: number;
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'text', nullable: true })
+  thumbnail?: string;
+
   @Field(() => ArticleStatus)
   @Column({ type: 'int', default: ArticleStatus.DRAFT, nullable: false }) // Use 'int' for enum value storage
   status!: ArticleStatus;
@@ -97,4 +104,7 @@ export class Article {
   @Field(() => String)
   @UpdateDateColumn()
   updatetime?: Date;
+
+  @Column({ nullable: true })
+  readingTimeMinutes?: number;
 }

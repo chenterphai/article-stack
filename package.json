@@ -8,7 +8,13 @@
     "dev": "nodemon",
     "format": "prettier --write .",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js --dataSource src/libs/postgresql.ts",
+    "migration:generate": "bun run typeorm migration:generate",
+    "migration:create": "bun run typeorm migration:create",
+    "migration:run": "bun run typeorm migration:run",
+    "migration:revert": "bun run typeorm migration:revert",
+    "migration:show": "bun run typeorm migration:show"
   },
   "devDependencies": {
     "@types/bun": "latest",

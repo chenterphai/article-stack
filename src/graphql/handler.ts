@@ -47,12 +47,6 @@ try {
       }
     }
   });
-
-  // Optional: Log the loaded resolvers for debugging
-  logger.info(
-    'Dynamically loaded TypeGraphQL resolvers:',
-    loadedResolvers.map((r) => r.name),
-  );
 } catch (error) {
   logger.error('Error loading GraphQL resolver files:', error);
   // Depending on your error handling strategy, you might want to re-throw or exit
