@@ -131,6 +131,7 @@ export class UpdateProfileInput {
   avatar?: string;
 
   @Field({ nullable: true })
+  @IsEmail()
   email?: string;
 
   @Field({ nullable: true })
