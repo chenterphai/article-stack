@@ -56,9 +56,6 @@ export class UpdateArticleInput {
   @Field(() => String, { nullable: true })
   slug?: string;
 
-  @Field(() => Int, { nullable: true }) // Author ID
-  authorId?: number;
-
   @Field(() => ArticleStatus, { nullable: true }) // Use ArticleStatus enum
   status?: ArticleStatus;
 }
@@ -139,7 +136,7 @@ export class UpdateProfileInput {
   @Field({ nullable: true })
   gender?: Gender;
 
-  @Field(() => Date)
+  @Field(() => Date, { nullable: true })
   updatetime?: Date;
 }
 
@@ -163,9 +160,6 @@ export class CreateCommentInput {
 /** --- Update comment input --- */
 @InputType()
 export class UpdateCommentInput {
-  @Field(() => Int)
-  id!: number;
-
   @Field(() => String, { nullable: true })
   content?: string;
 }

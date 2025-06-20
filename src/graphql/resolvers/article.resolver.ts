@@ -30,7 +30,7 @@ import {
   Query,
   Resolver,
 } from 'type-graphql';
-import { Brackets, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   ArticleResponse,
   ArticlesResponse,
@@ -45,15 +45,19 @@ import {
 } from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
+import { ArticleService } from '../services/article.service';
 
 @Resolver(() => Article) // Main Resolver for Artile entity
 export class ArticleResolver {
   private articleRepository: Repository<Article>;
   private userRepository: Repository<User>;
+  private articleService: ArticleService;
 
   constructor() {
+    // const articleRepository: Repository<Article> = AppDataSource.getRepository(Article)
     this.articleRepository = AppDataSource.getRepository(Article);
     this.userRepository = AppDataSource.getRepository(User);
+    this.articleService = new ArticleService(this.articleRepository);
   }
 
   /**---- Article Query ---- */
@@ -72,87 +76,20 @@ export class ArticleResolver {
     @Arg('searchKeyword', () => String, { nullable: true })
     searchKeyword: string,
   ): Promise<ArticlesResponse> {
-    try {
-      // Build the order object dynamically
-      const order: { [key: string]: 'ASC' | 'DESC' } = {};
-
-      order[sort.field] = sort.direction;
-
-      // Query Builder
-      const queryBuilder =
-        this.articleRepository.createQueryBuilder('fa_articles');
-
-      queryBuilder.where('fa_articles.status = :status', {
-        status: ArticleStatus.PUBLISHED,
-      });
-
-      if (searchKeyword) {
-        const keyword = `%${searchKeyword}%`;
-        queryBuilder.andWhere(
-          new Brackets((qb) => {
-            qb.where('fa_articles.title ILIKE :keyword', { keyword }).orWhere(
-              'fa_articles.content ILIKE :keyword',
-              { keyword },
-            );
-          }),
-        );
-      }
-
-      queryBuilder
-        .leftJoinAndSelect('fa_articles.author', 'fa_users')
-        .loadRelationCountAndMap(
-          'fa_articles.commentCount',
-          'fa_articles.comments',
-          'fa_comments_alias',
-        )
-        .orderBy(`fa_articles.${sort.field}`, sort.direction)
-        .take(limit)
-        .skip(offset);
-
-      const articles = await queryBuilder.getMany();
-
-      return {
-        status: {
-          code: 0,
-          status: 'OK',
-          msg: 'Articles fetched successfully.',
-        },
-        content: { data: articles },
-      };
-    } catch (error: any) {
-      return {
-        status: {
-          code: 1,
-          status: 'ERROR',
-          msg: error.message || 'Failed to fetch articles.',
-        },
-        content: null,
-      };
-    }
+    return await this.articleService.getArticles(
+      sort,
+      limit,
+      offset,
+      searchKeyword,
+    );
   }
 
   @Query(() => ArticleResponse, { nullable: true })
   async article(
     @Arg('id', () => ID) id: number,
-    @Ctx() context: GraphQLContext,
   ): Promise<ArticleResponse | null> {
     try {
-      const article = await this.articleRepository.findOne({
-        where: { id },
-        relations: ['author', 'comments'],
-      });
-      if (!article) {
-        return null;
-      }
-
-      return {
-        status: {
-          code: 0,
-          status: 'OK',
-          msg: `Article with ID ${id} fetched successfully.`,
-        },
-        content: { data: article },
-      };
+      return this.articleService.selectArticle(id);
     } catch (error) {
       logger.error(error);
       return null;
@@ -168,52 +105,7 @@ export class ArticleResolver {
   ): Promise<CreateArticleResponse> {
     try {
       const authorId = context.req.userId;
-
-      const author = await this.userRepository.findOne({
-        where: { id: authorId },
-      });
-      if (!author) {
-        return {
-          status: {
-            code: 1,
-            status: 'NOT_FOUND',
-            msg: `Author with ID ${authorId} not found!`,
-          },
-          content: null,
-        };
-      }
-
-      const existingSlug = await this.articleRepository.findOne({
-        where: { slug: input.slug },
-      });
-      if (existingSlug) {
-        return {
-          status: {
-            code: 1,
-            status: 'CONFLICT',
-            msg: `Article with slug "${input.slug}" already exists.`,
-          },
-          content: null,
-        };
-      }
-
-      const newArticle = this.articleRepository.create({
-        ...input,
-        author: author,
-        creationtime: new Date(),
-        updatetime: new Date(),
-      });
-
-      await this.articleRepository.save(newArticle);
-      logger.info(`Article created successfully.`, newArticle.id);
-      return {
-        status: {
-          code: 0,
-          status: 'CREATED',
-          msg: 'Article created successfully.',
-        },
-        content: { data: newArticle },
-      };
+      return await this.articleService.createNewArticle(authorId!, input);
     } catch (error: any) {
       return {
         status: {
@@ -227,74 +119,14 @@ export class ArticleResolver {
   }
 
   @Mutation(() => UpdateArticleResponse)
+  @Authorized()
   async updateArticle(
     @Arg('id') id: number,
     @Arg('input') input: UpdateArticleInput,
     @Ctx() context: GraphQLContext,
   ): Promise<UpdateArticleResponse> {
-    // Destrcuture input
-    const { authorId, slug } = input;
     try {
-      // Validate article: check if has article
-      const article = await this.articleRepository.findOne({
-        where: { id },
-      });
-      if (!article) {
-        return {
-          status: {
-            code: 1,
-            status: 'NOT_FOUND',
-            msg: `Article with ID ${id} not found.`,
-          },
-          content: null,
-        };
-      }
-
-      // Validate author
-      if (authorId !== undefined) {
-        const newAuthor = await this.userRepository.findOne({
-          where: { id: authorId },
-        });
-        if (!newAuthor) {
-          return {
-            status: {
-              code: 1,
-              status: 'NOT_FOUND',
-              msg: `New author with ID ${authorId} not found.`,
-            },
-            content: null,
-          };
-        }
-        article.author = newAuthor;
-      }
-
-      //Validate slug: if slug already exists
-      if (slug && slug !== article.slug) {
-        const existingSlug = await this.articleRepository.findOne({
-          where: { slug: slug },
-        });
-        if (existingSlug) {
-          return {
-            status: {
-              code: 1,
-              status: 'CONFLICT',
-              msg: `Slug "${slug}" is already in use by another article.`,
-            },
-            content: null,
-          };
-        }
-        article.slug = slug;
-      }
-
-      await this.articleRepository.update(id, {
-        ...input,
-        updatetime: new Date(),
-      });
-
-      return {
-        status: { code: 0, status: 'OK', msg: 'Article updated successfully.' },
-        content: { data: article },
-      };
+      return await this.articleService.updateArticle(id, input);
     } catch (error: any) {
       console.error('Error updating article:', error);
       return {
@@ -309,35 +141,10 @@ export class ArticleResolver {
   }
 
   @Mutation(() => DeleteArticleResponse)
-  async deleteArticle(
-    @Arg('id') id: number,
-    @Ctx() context: GraphQLContext,
-  ): Promise<DeleteArticleResponse> {
+  @Authorized()
+  async deleteArticle(@Arg('id') id: number): Promise<DeleteArticleResponse> {
     try {
-      const article = await this.articleRepository.findOne({
-        where: { id },
-      });
-      if (!article) {
-        context.res.sendStatus(404);
-        return {
-          status: {
-            code: 1,
-            status: 'NOT_FOUND',
-            msg: `Article with ID ${id} not found.`,
-          },
-          content: { message: `Article with ID ${id} not found.` },
-        };
-      }
-
-      await this.articleRepository.remove(article);
-      return {
-        status: {
-          code: 0,
-          status: 'OK',
-          msg: `Article with ID ${id} deleted successfully.`,
-        },
-        content: { message: `Article with ID ${id} deleted successfully.` },
-      };
+      return await this.articleService.deleteArticle(id);
     } catch (error: any) {
       console.error('Error deleting article:', error);
       return {
