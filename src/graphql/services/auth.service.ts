@@ -17,12 +17,12 @@ import { User } from '@/entities/user.entities';
 import {
   generateAccessToken,
   generateRefreshToken,
-  verifyAccessToken,
   verifyRefreshToken,
 } from '@/libs/jwt';
 import { logger } from '@/libs/winston';
 import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
+import { UpdateProfileInput } from '../types/input.type';
 
 export class AuthService {
   private userRepository: Repository<User>;
@@ -255,6 +255,24 @@ export class AuthService {
       });
     } catch (error) {
       logger.error(`Error while user request profile.`, error);
+      return null;
+    }
+  }
+
+  // --- USER PROFILE UPDATE METHOD ---
+  async update(id: number, input: UpdateProfileInput): Promise<User | null> {
+    try {
+      const user = this.userRepository.findOne({ where: { id } });
+      if (!user) return null;
+
+      await this.userRepository.update(id, {
+        ...input,
+        updatetime: new Date(),
+      });
+      logger.info(`User updated successfully.`);
+      return null;
+    } catch (error) {
+      logger.error(`Error while updating profile: ${error}`);
       return null;
     }
   }
