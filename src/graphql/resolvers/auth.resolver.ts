@@ -16,7 +16,11 @@ import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
 import { Arg, Authorized, Ctx, Mutation, Resolver } from 'type-graphql';
 import { AuthResponse } from '../types/response.type';
-import { LoginInput, RegisterInput } from '../types/input.type';
+import {
+  LoginInput,
+  RegisterInput,
+  UpdateProfileInput,
+} from '../types/input.type';
 import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
 import { AuthService } from '../services/auth.service';
@@ -100,6 +104,16 @@ export class AuthResolver {
   async userProfile(@Ctx() context: GraphQLContext): Promise<User | null> {
     const userId = context.req.userId;
     return await this.authService.profile(userId!);
+  }
+
+  @Mutation(() => User, { nullable: true })
+  @Authorized()
+  async updateProfile(
+    @Arg('input') input: UpdateProfileInput,
+    @Ctx() context: GraphQLContext,
+  ): Promise<User | null> {
+    const userId = context.req.userId;
+    return await this.authService.update(userId!, input);
   }
 
   @Mutation(() => AuthResponse)
