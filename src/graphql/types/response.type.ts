@@ -15,7 +15,7 @@
 import { Article } from '@/entities/article.entities';
 import { Comment } from '@/entities/comment.entities';
 import { User } from '@/entities/user.entities';
-import { Field, Int, ObjectType } from 'type-graphql';
+import { Field, ID, Int, ObjectType } from 'type-graphql';
 
 @ObjectType()
 export class ResponseStatus {
@@ -241,4 +241,10 @@ export class DeleteCommentResponse {
   status!: ResponseStatus;
   @Field(() => DeleteCommentContent, { nullable: true })
   content!: DeleteCommentContent | null;
+}
+
+@ObjectType()
+export class ArticleSearchResponse {
+  @Field(() => [ID])
+  id!: number[];
 }

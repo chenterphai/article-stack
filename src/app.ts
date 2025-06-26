@@ -32,6 +32,7 @@ import { resolvers } from '@/graphql/handler';
 import { GraphQLContext } from '@/@types/context';
 import { connectToDatabase } from './libs/postgresql';
 import { customAuthChecker } from './middleware/authenticate';
+// import esClient from './libs/elasticsearch';
 
 const app = express();
 
@@ -84,7 +85,10 @@ const app = express();
       }),
     );
 
+    // const esClientInfo = await esClient.info();
+
     app.listen(config.PORT, () => {
+      // logger.info(esClientInfo);
       logger.info(`Server running on http://localhost:${config.PORT}/api/v1`);
     });
   } catch (error) {

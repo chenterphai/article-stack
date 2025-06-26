@@ -29,6 +29,8 @@ const config = {
   DB_HOST: process.env.DB_HOST,
   DB_PORT: Number(process.env.DB_PORT),
   DB_NAME: process.env.DB_NAME,
+  ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
+  ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY as string,
 
   JWT_SECRET_KEY: process.env.JWT_SECRET_KEY as string,
   JWT_REFRESH_KEY: process.env.JWT_REFRESH_KEY as string,

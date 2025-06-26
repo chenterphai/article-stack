@@ -45,7 +45,6 @@ export class ArticleService {
     sort: { field: ArticleSortField; direction: SortDirection },
     limit?: number,
     offset?: number,
-    searchKeyword?: string,
   ): Promise<ArticlesResponse> {
     try {
       const order: { [key: string]: 'ASC' | 'DESC' } = {};
@@ -58,18 +57,6 @@ export class ArticleService {
       queryBuilder.where('fa_articles.status = :status', {
         status: ArticleStatus.PUBLISHED,
       });
-
-      if (searchKeyword) {
-        const keyword = `%${searchKeyword}%`;
-        queryBuilder.andWhere(
-          new Brackets((qb) => {
-            qb.where('fa_articles.title ILIKE :keyword', { keyword }).orWhere(
-              'fa_articles.content ILIKE :keyword',
-              { keyword },
-            );
-          }),
-        );
-      }
 
       queryBuilder
         .leftJoinAndSelect('fa_articles.author', 'fa_users')

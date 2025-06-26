@@ -21,15 +21,15 @@ import * as fs from 'fs';
 import config from '@/config';
 import { logger } from '@/libs/winston';
 
-const CA_CERT_PATH = path.join(
-  __dirname,
-  '..',
-  '..',
-  'certs',
-  'ca-certificate.pem',
-);
+// const CA_CERT_PATH = path.join(
+//   __dirname,
+//   '..',
+//   '..',
+//   'certs',
+//   'ca-certificate.pem',
+// );
 
-const sslCaCert = fs.readFileSync(CA_CERT_PATH).toString();
+// const sslCaCert = fs.readFileSync(CA_CERT_PATH).toString();
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -40,10 +40,10 @@ export const AppDataSource = new DataSource({
   database: config.DB_NAME,
   synchronize: false,
   logging: false,
-  ssl: {
-    rejectUnauthorized: true,
-    ca: sslCaCert,
-  },
+  // ssl: {
+  //   rejectUnauthorized: true,
+  //   ca: sslCaCert,
+  // },
   entities: [path.join(__dirname, '..', 'entities', '**', '*.{ts,js}')],
   migrations: [path.join(__dirname, '..', 'migrations', '**', '*.{ts,js}')],
   subscribers: [],

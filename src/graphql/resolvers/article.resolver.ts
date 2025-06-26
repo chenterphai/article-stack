@@ -15,10 +15,8 @@
 import {
   Article,
   ArticleSortField,
-  ArticleStatus,
   SortDirection,
 } from '@/entities/article.entities';
-import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
 import {
   Arg,
@@ -33,6 +31,7 @@ import {
 import { Repository } from 'typeorm';
 import {
   ArticleResponse,
+  ArticleSearchResponse,
   ArticlesResponse,
   CreateArticleResponse,
   DeleteArticleResponse,
@@ -43,21 +42,24 @@ import {
   CreateArticleInput,
   UpdateArticleInput,
 } from '../types/input.type';
-import { GraphQLContext } from '@/@types/context';
 import { logger } from '@/libs/winston';
 import { ArticleService } from '../services/article.service';
+import esClient from '@/libs/elasticsearch';
+import { GraphQLContext } from '@/@types/context';
+import { ArticleElastic } from '../elastic/article.elastic';
+import { User } from '@/entities/user.entities';
 
 @Resolver(() => Article) // Main Resolver for Artile entity
 export class ArticleResolver {
   private articleRepository: Repository<Article>;
-  private userRepository: Repository<User>;
   private articleService: ArticleService;
+  private articleElastic: ArticleElastic;
 
   constructor() {
-    // const articleRepository: Repository<Article> = AppDataSource.getRepository(Article)
     this.articleRepository = AppDataSource.getRepository(Article);
-    this.userRepository = AppDataSource.getRepository(User);
     this.articleService = new ArticleService(this.articleRepository);
+
+    this.articleElastic = new ArticleElastic(esClient);
   }
 
   /**---- Article Query ---- */
@@ -73,15 +75,14 @@ export class ArticleResolver {
       },
     })
     sort: ArticleSortInput,
-    @Arg('searchKeyword', () => String, { nullable: true })
-    searchKeyword: string,
   ): Promise<ArticlesResponse> {
-    return await this.articleService.getArticles(
-      sort,
-      limit,
-      offset,
-      searchKeyword,
-    );
+    const articles = await this.articleService.getArticles(sort, limit, offset);
+
+    // articles.content?.data?.map(async (article) => {
+    //   await this.articleElastic.indexArticleInElasticsearch(article);
+    // });
+
+    return articles;
   }
 
   @Query(() => ArticleResponse, { nullable: true })
@@ -96,16 +97,59 @@ export class ArticleResolver {
     }
   }
 
+  @Query(() => ArticleSearchResponse, { nullable: true })
+  async searchArticles(
+    @Arg('limit', () => Int, { nullable: true }) limit: number,
+    @Arg('offset', () => Int, { nullable: true }) offset: number,
+    @Arg('searchKeyword', () => String, { nullable: true })
+    searchKeyword: string,
+  ): Promise<ArticleSearchResponse | null> {
+    const articles = await this.articleElastic.searchArticleInElasticsearch(
+      searchKeyword,
+      limit,
+      offset,
+    );
+
+    logger.info(articles);
+
+    if (!articles) {
+      return null;
+    }
+
+    return { id: articles };
+  }
+
   /**---- Article Mutation ---- */
-  @Mutation(() => CreateArticleResponse)
+  @Mutation(() => CreateArticleResponse, { nullable: true })
   @Authorized()
   async createArticle(
     @Arg('input') input: CreateArticleInput,
     @Ctx() context: GraphQLContext,
-  ): Promise<CreateArticleResponse> {
+  ): Promise<CreateArticleResponse | null> {
     try {
       const authorId = context.req.userId;
-      return await this.articleService.createNewArticle(authorId!, input);
+      const author = await this.articleRepository.manager.findOne(User, {
+        where: { id: authorId },
+      });
+
+      if (!author) {
+        throw new Error('Author not found.');
+      }
+
+      const savedArticle = await this.articleService.createNewArticle(
+        authorId!,
+        input,
+      );
+
+      if (!savedArticle.content?.data) {
+        return null;
+      }
+
+      await this.articleElastic.indexArticleInElasticsearch(
+        savedArticle.content.data,
+      );
+
+      return savedArticle;
     } catch (error: any) {
       return {
         status: {
