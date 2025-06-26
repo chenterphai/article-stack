@@ -46,20 +46,16 @@ import { logger } from '@/libs/winston';
 import { ArticleService } from '../services/article.service';
 import esClient from '@/libs/elasticsearch';
 import { GraphQLContext } from '@/@types/context';
-import { ArticleElastic } from '../elastic/article.elastic';
 import { User } from '@/entities/user.entities';
 
 @Resolver(() => Article) // Main Resolver for Artile entity
 export class ArticleResolver {
   private articleRepository: Repository<Article>;
   private articleService: ArticleService;
-  private articleElastic: ArticleElastic;
 
   constructor() {
     this.articleRepository = AppDataSource.getRepository(Article);
-    this.articleService = new ArticleService(this.articleRepository);
-
-    this.articleElastic = new ArticleElastic(esClient);
+    this.articleService = new ArticleService(this.articleRepository, esClient);
   }
 
   /**---- Article Query ---- */
@@ -104,19 +100,16 @@ export class ArticleResolver {
     @Arg('searchKeyword', () => String, { nullable: true })
     searchKeyword: string,
   ): Promise<ArticleSearchResponse | null> {
-    const articles = await this.articleElastic.searchArticleInElasticsearch(
+    const articles = this.articleService.searchArticles(
       searchKeyword,
       limit,
       offset,
     );
 
-    logger.info(articles);
-
     if (!articles) {
       return null;
     }
-
-    return { id: articles };
+    return articles;
   }
 
   /**---- Article Mutation ---- */
@@ -136,20 +129,7 @@ export class ArticleResolver {
         throw new Error('Author not found.');
       }
 
-      const savedArticle = await this.articleService.createNewArticle(
-        authorId!,
-        input,
-      );
-
-      if (!savedArticle.content?.data) {
-        return null;
-      }
-
-      await this.articleElastic.indexArticleInElasticsearch(
-        savedArticle.content.data,
-      );
-
-      return savedArticle;
+      return await this.articleService.createNewArticle(authorId!, input);
     } catch (error: any) {
       return {
         status: {
@@ -167,7 +147,6 @@ export class ArticleResolver {
   async updateArticle(
     @Arg('id') id: number,
     @Arg('input') input: UpdateArticleInput,
-    @Ctx() context: GraphQLContext,
   ): Promise<UpdateArticleResponse> {
     try {
       return await this.articleService.updateArticle(id, input);

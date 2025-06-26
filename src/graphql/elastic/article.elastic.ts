@@ -1,6 +1,7 @@
 import { Article } from '@/entities/article.entities';
 import { logger } from '@/libs/winston';
 import { Client } from '@elastic/elasticsearch';
+import { UpdateArticleInput } from '../types/input.type';
 
 export class ArticleElastic {
   private esClient: Client;
@@ -100,6 +101,37 @@ export class ArticleElastic {
       return esResponse.hits.hits.map((hit: any) => parseInt(hit._id, 10));
     } else {
       return null;
+    }
+  }
+
+  async updateArticleInElasticsearch(id: string, article: UpdateArticleInput) {
+    try {
+      await this.esClient.update({
+        index: this.ARTICLE_INDEX,
+        id,
+        doc: {
+          title: article.title,
+          content: article.content,
+          slug: article.slug,
+        },
+        refresh: 'wait_for',
+      });
+      logger.info(`Article ${id} successfully updated in Elasticsearch.`);
+    } catch (error) {
+      logger.error(`Error updating article ${id} in Elasticsearch: ${error}`);
+    }
+  }
+
+  async deleteArticleInElasticsearch(id: string) {
+    try {
+      await this.esClient.delete({
+        index: this.ARTICLE_INDEX,
+        id,
+        refresh: 'wait_for',
+      });
+      logger.info(`Article ${id} successfully deleted from Elasticsearch.`);
+    } catch (error) {
+      logger.error(`Error deleting article ${id} from Elasticsearch: ${error}`);
     }
   }
 }

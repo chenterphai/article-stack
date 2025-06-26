@@ -21,6 +21,7 @@ import {
 import { Brackets, Repository } from 'typeorm';
 import {
   ArticleResponse,
+  ArticleSearchResponse,
   ArticlesResponse,
   CreateArticleResponse,
   DeleteArticleResponse,
@@ -30,14 +31,20 @@ import { logger } from '@/libs/winston';
 import { User } from '@/entities/user.entities';
 import { AppDataSource } from '@/libs/postgresql';
 import { CreateArticleInput, UpdateArticleInput } from '../types/input.type';
+import { Client } from '@elastic/elasticsearch';
+import { ArticleElastic } from '../elastic/article.elastic';
 
 export class ArticleService {
   private articleRepository: Repository<Article>;
   private userRepository: Repository<User>;
 
-  constructor(articleRepository: Repository<Article>) {
+  private articleElastic: ArticleElastic;
+
+  constructor(articleRepository: Repository<Article>, esClient: Client) {
     this.articleRepository = articleRepository;
     this.userRepository = AppDataSource.getRepository(User);
+
+    this.articleElastic = new ArticleElastic(esClient);
   }
 
   // --- SELECT ALL ARTICLE ---
@@ -151,8 +158,11 @@ export class ArticleService {
       updatetime: new Date(),
     });
 
-    await this.articleRepository.save(newArticle);
+    const savedArticle = await this.articleRepository.save(newArticle);
     logger.info(`Article created successfully.`, newArticle.id);
+
+    await this.articleElastic.indexArticleInElasticsearch(savedArticle);
+
     return {
       status: {
         code: 0,
@@ -206,6 +216,11 @@ export class ArticleService {
       updatetime: new Date(),
     });
 
+    await this.articleElastic.updateArticleInElasticsearch(
+      id.toString(),
+      input,
+    );
+
     return {
       status: { code: 0, status: 'OK', msg: 'Article updated successfully.' },
       content: null,
@@ -229,6 +244,7 @@ export class ArticleService {
     }
 
     await this.articleRepository.remove(article);
+    await this.articleElastic.deleteArticleInElasticsearch(id.toString());
     return {
       status: {
         code: 0,
@@ -237,5 +253,25 @@ export class ArticleService {
       },
       content: { message: `Article with ID ${id} deleted successfully.` },
     };
+  }
+
+  async searchArticles(
+    searchKeyword: string,
+    limit: number,
+    offset: number,
+  ): Promise<ArticleSearchResponse | null> {
+    try {
+      const articles = await this.articleElastic.searchArticleInElasticsearch(
+        searchKeyword,
+        limit,
+        offset,
+      );
+      if (!articles) {
+        return null;
+      }
+      return { id: articles };
+    } catch (error) {
+      return null;
+    }
   }
 }
